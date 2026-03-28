@@ -1863,52 +1863,101 @@ int parseIOCmd() {
 }
 
 int parseSimpleCmd() {
-  int op = curToken;
-  getNextToken();  // eat op
-  if (executeMode) {
-    switch (op) {
-      case TOKEN_NEW:
-        reset();
-        breakCurrentLine = 1;
-        break;
-      case TOKEN_STOP:
-        stopLineNumber = lineNumber;
-        stopStmtNumber = stmtNumber;
-        return ERROR_STOP_STATEMENT;
-      case TOKEN_CONT:
-        if (stopLineNumber) {
-          jumpLineNumber = stopLineNumber;
-          jumpStmtNumber = stopStmtNumber + 1;
+    int op = curToken;
+    getNextToken();  // eat op
+
+    #if BASIC_DEBUG
+    Serial.print(F("SimpleCmd: op="));
+    Serial.println(op, DEC);
+    #endif
+
+    if (executeMode) {
+        switch (op) {
+            case TOKEN_NEW:
+                #if BASIC_DEBUG
+                Serial.println(F("NEW"));
+                #endif
+                reset();
+                breakCurrentLine = 1;
+                break;
+
+            case TOKEN_STOP:
+                #if BASIC_DEBUG
+                Serial.println(F("STOP"));
+                #endif
+                stopLineNumber = lineNumber;
+                stopStmtNumber = stmtNumber;
+                return ERROR_STOP_STATEMENT;
+
+            case TOKEN_CONT:
+                #if BASIC_DEBUG
+                Serial.println(F("CONT"));
+                #endif
+                if (stopLineNumber) {
+                    jumpLineNumber = stopLineNumber;
+                    jumpStmtNumber = stopStmtNumber + 1;
+                }
+                break;
+
+            case TOKEN_RETURN:
+                {
+                    #if BASIC_DEBUG
+                    Serial.println(F("RETURN"));
+                    #endif
+                    int returnLineNumber, returnStmtNumber;
+                    if (!gosubStackPop(&returnLineNumber, &returnStmtNumber))
+                        return ERROR_RETURN_WITHOUT_GOSUB;
+                    jumpLineNumber = returnLineNumber;
+                    jumpStmtNumber = returnStmtNumber + 1;
+                    break;
+                }
+
+            case TOKEN_CLS:
+                #if BASIC_DEBUG
+                Serial.println(F("CLS"));
+                #endif
+                host_cls();
+                host_showBuffer();
+                break;
+
+            case TOKEN_DIR:
+                #if BASIC_DEBUG
+                Serial.println(F("DIR"));
+                #endif
+                host_dirExtEEPROM();
+                break;
+
+            case TOKEN_FORMAT:
+                #if BASIC_DEBUG
+                Serial.println(F("FORMAT"));
+                #endif
+                host_extEEPROM_format();
+                break;
+
+            case TOKEN_BEEP:
+                #if BASIC_DEBUG
+                Serial.println(F("BEEP command executing"));
+                #endif
+                // Мигаем светодиодом для визуальной отладки
+                pinMode(13, OUTPUT);
+                digitalWrite(13, HIGH);
+                delay(100);
+                digitalWrite(13, LOW);
+                host_play("C5");
+                #if BASIC_DEBUG
+                Serial.println(F("BEEP command finished"));
+                #endif
+                break;
+
+            default:
+                #if BASIC_DEBUG
+                Serial.print(F("Unknown simple command: "));
+                Serial.println(op, DEC);
+                #endif
+                break;
         }
-        break;
-      case TOKEN_RETURN:
-        {
-          int returnLineNumber, returnStmtNumber;
-          if (!gosubStackPop(&returnLineNumber, &returnStmtNumber))
-            return ERROR_RETURN_WITHOUT_GOSUB;
-          jumpLineNumber = returnLineNumber;
-          jumpStmtNumber = returnStmtNumber + 1;
-          break;
-        }
-      case TOKEN_CLS:
-        host_cls();
-        host_showBuffer();
-        break;
-      case TOKEN_DIR:
-        host_dirExtEEPROM();
-        break;
-      case TOKEN_FORMAT:
-        host_extEEPROM_format();
-        break;
-      case TOKEN_BEEP:
-        digitalWrite(13, HIGH);
-        delay(100);
-        digitalWrite(13, LOW);
-        host_play("C5");
-        break;
     }
-  }
-  return 0;
+    return 0;
 }
 
 int parse_DIM() {
@@ -2091,7 +2140,7 @@ int processInput(unsigned char *tokenBuf) {
 
     executeMode = 0;
     targetStmtNumber = 0;
-    
+
     int ret = parseStmts();  // syntax check
     if (ret != ERROR_NONE)
         return ret;
@@ -2103,16 +2152,23 @@ int processInput(unsigned char *tokenBuf) {
         tokenBuffer = tokenBuf;
         executeMode = 1;
         lineNumber = 0;
-        unsigned char *p;
+        unsigned char *p = &mem[0];
+
+        #if BASIC_DEBUG
+        Serial.print(F("Starting execution, sysPROGEND="));
+        Serial.println(sysPROGEND);
+        #endif
 
         while (1) {
             getNextToken();
             stmtNumber = 0;
-            
+
             #if BASIC_DEBUG
             if (lineNumber) {
-                Serial.print(F("L:"));
+                Serial.print(F("Executing line "));
                 Serial.println(lineNumber);
+                Serial.print(F("First token: 0x"));
+                Serial.println(tokenBuffer[0], HEX);
             }
             #endif
 
@@ -2122,14 +2178,27 @@ int processInput(unsigned char *tokenBuf) {
                 executeMode = 1;
                 targetStmtNumber = 0;
             }
-            
+
+            #if BASIC_DEBUG
+            Serial.println(F("Calling parseStmts"));
+            #endif
+
             ret = parseStmts();
-            
+
+            #if BASIC_DEBUG
+            Serial.print(F("parseStmts returned: "));
+            Serial.println(ret);
+            #endif
+
             if (ret != ERROR_NONE)
                 break;
 
-            if (!lineNumber && !jumpLineNumber && !jumpStmtNumber)
+            if (!lineNumber && !jumpLineNumber && !jumpStmtNumber) {
+                #if BASIC_DEBUG
+                Serial.println(F("End of program"));
+                #endif
                 break;
+            }
 
             if (lineNumber && !jumpLineNumber && jumpStmtNumber)
                 lineNumber = 0;
@@ -2138,21 +2207,34 @@ int processInput(unsigned char *tokenBuf) {
                 tokenBuffer = tokenBuf;
             } else {
                 if (jumpLineNumber || jumpStmtNumber) {
+                    #if BASIC_DEBUG
+                    Serial.print(F("Jump to line "));
+                    Serial.println(jumpLineNumber);
+                    #endif
                     p = findProgLine(jumpLineNumber);
                 } else {
                     p += *(uint16_t *)p;
                 }
-                
-                if (p == &mem[sysPROGEND])
+
+                if (p == &mem[sysPROGEND]) {
+                    #if BASIC_DEBUG
+                    Serial.println(F("End of program reached"));
+                    #endif
                     break;
+                }
 
                 lineNumber = *(uint16_t *)(p + 2);
                 tokenBuffer = p + 4;
-                
+
+                #if BASIC_DEBUG
+                Serial.print(F("Next line: "));
+                Serial.println(lineNumber);
+                #endif
+
                 if (jumpLineNumber && jumpStmtNumber && lineNumber > jumpLineNumber)
                     jumpStmtNumber = 0;
             }
-            
+
             if (jumpStmtNumber)
                 targetStmtNumber = jumpStmtNumber;
 
@@ -2162,6 +2244,12 @@ int processInput(unsigned char *tokenBuf) {
             }
         }
     }
+
+    #if BASIC_DEBUG
+    Serial.print(F("processInput returning: "));
+    Serial.println(ret);
+    #endif
+
     return ret;
 }
 

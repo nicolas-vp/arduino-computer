@@ -113,7 +113,7 @@
 #define ERROR_BAD_PARAMETER 24
 #define ERROR_OUT_OF_DATA 25
 
-#define BASIC_DEBUG 0
+#define BASIC_DEBUG 1
 
 #define MAX_IDENT_LEN 8
 #define MAX_NUMBER_LEN 10
