@@ -49,7 +49,8 @@
 
 #include "basic.h"
 #include "../host/host.h"
-#include "../lang/russian_strings.h" 
+#include "../lang/russian_strings.h"
+#include "../config.h" 
 
 int sysPROGEND;
 int sysSTACKSTART, sysSTACKEND;
@@ -88,7 +89,7 @@ PROGMEM const TokenTableEntry tokenTable[] = {
   { "RIGHT$", 2 | TKN_ARG1_TYPE_STR | TKN_RET_TYPE_STR }, { "MID$", 3 | TKN_ARG1_TYPE_STR | TKN_RET_TYPE_STR }, { "CLS", TKN_FMT_POST }, { "PAUSE", TKN_FMT_POST }, 
   { "POSITION", TKN_FMT_POST }, { "PIN", TKN_FMT_POST }, { "PINMODE", TKN_FMT_POST }, { "INKEY$", 0 }, { "SAVE", TKN_FMT_POST }, { "LOAD", TKN_FMT_POST }, { "PINREAD", 1 }, 
   { "ANALOGRD", 1 }, { "DIR", TKN_FMT_POST }, { "DELETE", TKN_FMT_POST }, { "CHR$", 1 | TKN_RET_TYPE_STR }, { "ABS", 1 }, { "SIN", 1 }, { "COS", 1 }, 
-  { "DATA", TKN_FMT_POST }, { "READ", TKN_FMT_POST }, { "RESTORE", TKN_FMT_POST }, { "PLAY", TKN_FMT_POST }, { "FORMAT", TKN_FMT_POST }, { "BEEP", TKN_FMT_POST }
+  { "DATA", TKN_FMT_POST }, { "READ", TKN_FMT_POST }, { "RESTORE", TKN_FMT_POST }, { "PLAY", TKN_FMT_POST }, { "FORMAT", TKN_FMT_POST }, { "BEEP", TKN_FMT_POST }, { "TEST_PRINT", TKN_FMT_POST }
 };
 
 /* **************************************************************************
@@ -152,6 +153,183 @@ void listProg(uint16_t first, uint16_t last) {
   }
 }
 
+// Конвертация токенизированной программы в текст для сохранения в EEPROM
+// Возвращает размер записанных данных или 0 при ошибке
+int program_to_text(uint8_t* buffer, int buffer_size) {
+    unsigned char *p = &mem[0];
+    int pos = 0;
+    
+    while (p < &mem[sysPROGEND]) {
+        uint16_t lineLen = *(uint16_t *)p;
+        uint16_t lineNum = *(uint16_t *)(p + 2);
+        unsigned char *tokenStart = p + 4;
+        unsigned char *tokenEnd = p + lineLen;
+        
+        // Форматируем номер строки
+        char lineNumStr[10];
+        int lineNumLen = snprintf(lineNumStr, sizeof(lineNumStr), "%d", lineNum);
+        
+        if (pos + lineNumLen + 1 >= buffer_size) return 0; // буфер полон
+        memcpy(buffer + pos, lineNumStr, lineNumLen);
+        pos += lineNumLen;
+        buffer[pos++] = ' ';
+        
+        // Декодируем токены в текст
+        unsigned char *tp = tokenStart;
+        int modeREM = 0;
+        while (tp < tokenEnd && *tp != TOKEN_EOL) {
+            if (*tp == TOKEN_IDENT) {
+                tp++;
+                while (tp < tokenEnd && *tp < 0x80) {
+                    if (pos >= buffer_size) return 0;
+                    buffer[pos++] = *tp++;
+                }
+                if (tp < tokenEnd) {
+                    if (pos >= buffer_size) return 0;
+                    buffer[pos++] = (*tp++) - 0x80;
+                }
+            } else if (*tp == TOKEN_NUMBER) {
+                tp++;
+                if (tp + sizeof(float) <= tokenEnd) {
+                    char numStr[20];
+                    int len = snprintf(numStr, sizeof(numStr), "%g", *(float*)tp);
+                    if (pos + len >= buffer_size) return 0;
+                    memcpy(buffer + pos, numStr, len);
+                    pos += len;
+                    tp += sizeof(float);
+                }
+            } else if (*tp == TOKEN_INTEGER) {
+                tp++;
+                if (tp + sizeof(long) <= tokenEnd) {
+                    char numStr[15];
+                    int len = snprintf(numStr, sizeof(numStr), "%ld", *(long*)tp);
+                    if (pos + len >= buffer_size) return 0;
+                    memcpy(buffer + pos, numStr, len);
+                    pos += len;
+                    tp += sizeof(long);
+                }
+            } else if (*tp == TOKEN_STRING) {
+                tp++;
+                if (pos >= buffer_size) return 0;
+                buffer[pos++] = '"';
+                while (tp < tokenEnd && *tp) {
+                    if (modeREM) {
+                        if (pos >= buffer_size) return 0;
+                        buffer[pos++] = *tp++;
+                    } else {
+                        if (*tp == '"' && *(tp + 1) != '"') break;
+                        if (*tp == '"') {
+                            if (pos + 2 >= buffer_size) return 0;
+                            buffer[pos++] = '"';
+                            buffer[pos++] = '"';
+                            tp++;
+                        } else {
+                            if (pos >= buffer_size) return 0;
+                            buffer[pos++] = *tp++;
+                        }
+                    }
+                }
+                if (pos >= buffer_size) return 0;
+                buffer[pos++] = '"';
+                if (tp < tokenEnd) tp++; // skip null terminator
+            } else {
+                uint8_t fmt = pgm_read_byte_near(&tokenTable[*tp].format);
+                if (fmt & TKN_FMT_PRE) {
+                    if (pos >= buffer_size) return 0;
+                    buffer[pos++] = ' ';
+                }
+                const char* tokenStr = (char*)pgm_read_word(&tokenTable[*tp].token);
+                int tlen = strlen(tokenStr);
+                if (pos + tlen >= buffer_size) return 0;
+                memcpy(buffer + pos, tokenStr, tlen);
+                pos += tlen;
+                if (fmt & TKN_FMT_POST) {
+                    if (pos >= buffer_size) return 0;
+                    buffer[pos++] = ' ';
+                }
+                if (*tp == TOKEN_REM) modeREM = 1;
+                tp++;
+            }
+        }
+        
+        // Добавляем newline
+        if (pos >= buffer_size) return 0;
+        buffer[pos++] = '\n';
+        
+        p += lineLen;
+    }
+    
+    return pos;
+}
+
+// Forward declaration
+int doProgLine(uint16_t lineNumber, unsigned char *tokenPtr, int tokensLength);
+
+// Загрузка текстовой программы из буфера с автоматическими номерами строк
+// Возвращает true при успехе
+bool load_text_program(const uint8_t* buffer, size_t size) {
+    if (!buffer || size == 0) return false;
+    
+    reset();
+    
+    int line_num = 1;
+    int pos = 0;
+    char line_buffer[128];
+    int line_pos = 0;
+    int lines_loaded = 0;
+    
+    while (pos < (int)size) {
+        char c = buffer[pos++];
+        
+        if (c == '\n' || c == '\r') {
+            if (line_pos > 0 && line_pos < (int)sizeof(line_buffer)) {
+                line_buffer[line_pos] = '\0';
+                
+                unsigned char token_buf[256];
+                int ret = tokenize((unsigned char*)line_buffer, token_buf, sizeof(token_buf));
+                
+                if (ret != ERROR_NONE) {
+                    return false;
+                }
+                
+                int token_length = sizeof(token_buf) - tokenOutLeft;
+                
+                if (!doProgLine(line_num, token_buf, token_length)) {
+                    return false;
+                }
+                
+                lines_loaded++;
+                line_num++;
+            }
+            line_pos = 0;
+            
+            if (c == '\r' && pos < (int)size && buffer[pos] == '\n') {
+                pos++;
+            }
+        } else {
+            if (line_pos < (int)sizeof(line_buffer) - 1) {
+                line_buffer[line_pos++] = c;
+            }
+        }
+    }
+
+    // Обрабатываем последнюю строку без newline
+    if (line_pos > 0 && line_pos < (int)sizeof(line_buffer)) {
+        line_buffer[line_pos] = '\0';
+
+        unsigned char token_buf[256];
+        int ret = tokenize((unsigned char*)line_buffer, token_buf, sizeof(token_buf));
+
+        if (ret == ERROR_NONE) {
+            int token_length = sizeof(token_buf) - tokenOutLeft;
+            doProgLine(line_num, token_buf, token_length);
+            lines_loaded++;
+        }
+    }
+    
+    return sysPROGEND > 0;
+}
+
 unsigned char *findProgLine(uint16_t targetLineNumber) {
   unsigned char *p = &mem[0];
   while (p < &mem[sysPROGEND]) {
@@ -170,12 +348,6 @@ void deleteProgLine(unsigned char *p) {
 }
 
 int doProgLine(uint16_t lineNumber, unsigned char *tokenPtr, int tokensLength) {
-    #if BASIC_DEBUG
-    Serial.print(F("doProgLine: line="));
-    Serial.print(lineNumber);
-    Serial.print(F(" tokensLength="));
-    Serial.println(tokensLength);
-    #endif
 
   // find line of the at or immediately after the number
   unsigned char *p = findProgLine(lineNumber);
@@ -201,12 +373,7 @@ int doProgLine(uint16_t lineNumber, unsigned char *tokenPtr, int tokensLength) {
   p += 2;
   memcpy(p, tokenPtr, tokensLength);
   sysPROGEND += bytesNeeded;
-  
-  #if BASIC_DEBUG
-  Serial.print(F("doProgLine: sysPROGEND now "));
-  Serial.println(sysPROGEND);
-  #endif
-  
+
   return 1;
 }
 
@@ -719,7 +886,7 @@ int gosubStackPop(int *lineNumber, int *stmtNumber) {
  * **************************************************************************/
 
 static unsigned char *tokenIn, *tokenOut;
-static int tokenOutLeft;
+int tokenOutLeft;
 
 // nextToken returns -1 for end of input, 0 for success, +ve number = error code
 int nextToken() {
@@ -767,12 +934,12 @@ int nextToken() {
     }
     return 0;
   }
-  // identifier: [a-zA-Z][a-zA-Z0-9]*[$]
+  // identifier: [a-zA-Z][a-zA-Z0-9_$]*
   if (isalpha(*tokenIn)) {
     char identStr[MAX_IDENT_LEN + 1];
     int identLen = 0;
     identStr[identLen++] = *tokenIn++;  // copy first char
-    while (isalnum(*tokenIn) || *tokenIn == '$') {
+    while (isalnum(*tokenIn) || *tokenIn == '$' || *tokenIn == '_') {
       if (identLen < MAX_IDENT_LEN)
         identStr[identLen++] = *tokenIn;
       tokenIn++;
@@ -1526,16 +1693,8 @@ int parse_RUN() {
     if (executeMode) {
         // Проверяем, есть ли программа
         if (sysPROGEND == 0) {
-            #if BASIC_DEBUG
-            Serial.println(F("No program in memory!"));
-            #endif
             return ERROR_NONE;
         }
-
-        #if BASIC_DEBUG
-        Serial.print(F("Starting from line "));
-        Serial.println(startLine);
-        #endif
 
         sysVARSTART = sysVAREND = sysGOSUBSTART = sysGOSUBEND = MEMORY_SIZE;
         jumpLineNumber = startLine;
@@ -1863,52 +2022,65 @@ int parseIOCmd() {
 }
 
 int parseSimpleCmd() {
-  int op = curToken;
-  getNextToken();  // eat op
-  if (executeMode) {
-    switch (op) {
-      case TOKEN_NEW:
-        reset();
-        breakCurrentLine = 1;
-        break;
-      case TOKEN_STOP:
-        stopLineNumber = lineNumber;
-        stopStmtNumber = stmtNumber;
-        return ERROR_STOP_STATEMENT;
-      case TOKEN_CONT:
-        if (stopLineNumber) {
-          jumpLineNumber = stopLineNumber;
-          jumpStmtNumber = stopStmtNumber + 1;
+    int op = curToken;
+    getNextToken();  // eat op
+
+    if (executeMode) {
+        switch (op) {
+            case TOKEN_NEW:
+                reset();
+                breakCurrentLine = 1;
+                break;
+
+            case TOKEN_STOP:
+                stopLineNumber = lineNumber;
+                stopStmtNumber = stmtNumber;
+                return ERROR_STOP_STATEMENT;
+
+            case TOKEN_CONT:
+                if (stopLineNumber) {
+                    jumpLineNumber = stopLineNumber;
+                    jumpStmtNumber = stopStmtNumber + 1;
+                }
+                break;
+
+            case TOKEN_RETURN:
+                {
+                    int returnLineNumber, returnStmtNumber;
+                    if (!gosubStackPop(&returnLineNumber, &returnStmtNumber))
+                        return ERROR_RETURN_WITHOUT_GOSUB;
+                    jumpLineNumber = returnLineNumber;
+                    jumpStmtNumber = returnStmtNumber + 1;
+                    break;
+                }
+
+            case TOKEN_CLS:
+                host_cls();
+                host_showBuffer();
+                break;
+
+            case TOKEN_DIR:
+                host_dirExtEEPROM();
+                break;
+
+            case TOKEN_FORMAT:
+                host_extEEPROM_format();
+                break;
+
+            case TOKEN_BEEP:
+                tone(BUZZER_PIN, 523, 200);
+                delay(250);
+                break;
+                
+            case TOKEN_TEST_PRINT:
+                Serial.println(F("WORKING"));
+                return ERROR_NONE;
+                
+            default:
+                break;
         }
-        break;
-      case TOKEN_RETURN:
-        {
-          int returnLineNumber, returnStmtNumber;
-          if (!gosubStackPop(&returnLineNumber, &returnStmtNumber))
-            return ERROR_RETURN_WITHOUT_GOSUB;
-          jumpLineNumber = returnLineNumber;
-          jumpStmtNumber = returnStmtNumber + 1;
-          break;
-        }
-      case TOKEN_CLS:
-        host_cls();
-        host_showBuffer();
-        break;
-      case TOKEN_DIR:
-        host_dirExtEEPROM();
-        break;
-      case TOKEN_FORMAT:
-        host_extEEPROM_format();
-        break;
-      case TOKEN_BEEP:
-        digitalWrite(13, HIGH);
-        delay(100);
-        digitalWrite(13, LOW);
-        host_play("C5");
-        break;
     }
-  }
-  return 0;
+    return 0;
 }
 
 int parse_DIM() {
@@ -1928,11 +2100,7 @@ int parse_DIM() {
 
 static int targetStmtNumber;
 int parseStmts() {
-    #if BASIC_DEBUG
-    Serial.print(F("parseStmts: curToken="));
-    Serial.println(curToken, DEC);
-    #endif
-    
+
     int ret = 0;
     breakCurrentLine = 0;
     jumpLineNumber = 0;
@@ -1940,16 +2108,9 @@ int parseStmts() {
 
     while (ret == 0) {
         if (curToken == TOKEN_EOL) {
-            #if BASIC_DEBUG
-            Serial.println(F("parseStmts: EOL reached"));
-            #endif
             break;
         }
-        #if BASIC_DEBUG
-        Serial.print(F("Processing token: "));
-        Serial.println(curToken, DEC);
-        #endif
-        
+
         if (executeMode)
             sysSTACKEND = sysSTACKSTART = sysPROGEND;  // clear calculator stack
             
@@ -2029,6 +2190,7 @@ int parseStmts() {
             case TOKEN_DIR:
             case TOKEN_FORMAT:
             case TOKEN_BEEP:
+            case TOKEN_TEST_PRINT:
                 parseSimpleCmd();
                 break;
             default:
@@ -2057,23 +2219,11 @@ int parseStmts() {
         if (stmtNumber == targetStmtNumber)
             break;
     }
-    
-    #if BASIC_DEBUG
-    Serial.print(F("parseStmts returning: "));
-    Serial.println(ret);
-    #endif
-    
+
     return ret;
 }
 
 int processInput(unsigned char *tokenBuf) {
-    #if BASIC_DEBUG
-    Serial.print(F("P:"));
-    Serial.print(tokenBuf[0], DEC);
-    Serial.print(F(" M:"));
-    Serial.println(sysPROGEND);
-    #endif
-
     tokenBuffer = tokenBuf;
     getNextToken();
     
@@ -2091,7 +2241,7 @@ int processInput(unsigned char *tokenBuf) {
 
     executeMode = 0;
     targetStmtNumber = 0;
-    
+
     int ret = parseStmts();  // syntax check
     if (ret != ERROR_NONE)
         return ret;
@@ -2103,18 +2253,11 @@ int processInput(unsigned char *tokenBuf) {
         tokenBuffer = tokenBuf;
         executeMode = 1;
         lineNumber = 0;
-        unsigned char *p;
+        unsigned char *p = &mem[0];
 
         while (1) {
             getNextToken();
             stmtNumber = 0;
-            
-            #if BASIC_DEBUG
-            if (lineNumber) {
-                Serial.print(F("L:"));
-                Serial.println(lineNumber);
-            }
-            #endif
 
             if (targetStmtNumber) {
                 executeMode = 0;
@@ -2122,14 +2265,15 @@ int processInput(unsigned char *tokenBuf) {
                 executeMode = 1;
                 targetStmtNumber = 0;
             }
-            
+
             ret = parseStmts();
-            
+
             if (ret != ERROR_NONE)
                 break;
 
-            if (!lineNumber && !jumpLineNumber && !jumpStmtNumber)
+            if (!lineNumber && !jumpLineNumber && !jumpStmtNumber) {
                 break;
+            }
 
             if (lineNumber && !jumpLineNumber && jumpStmtNumber)
                 lineNumber = 0;
@@ -2142,17 +2286,18 @@ int processInput(unsigned char *tokenBuf) {
                 } else {
                     p += *(uint16_t *)p;
                 }
-                
-                if (p == &mem[sysPROGEND])
+
+                if (p == &mem[sysPROGEND]) {
                     break;
+                }
 
                 lineNumber = *(uint16_t *)(p + 2);
                 tokenBuffer = p + 4;
-                
+
                 if (jumpLineNumber && jumpStmtNumber && lineNumber > jumpLineNumber)
                     jumpStmtNumber = 0;
             }
-            
+
             if (jumpStmtNumber)
                 targetStmtNumber = jumpStmtNumber;
 
@@ -2162,6 +2307,7 @@ int processInput(unsigned char *tokenBuf) {
             }
         }
     }
+
     return ret;
 }
 
@@ -2172,12 +2318,13 @@ void reset() {
     sysSTACKSTART = sysSTACKEND = sysPROGEND;
     // variables/gosub stack at the end of memory
     sysVARSTART = sysVAREND = sysGOSUBSTART = sysGOSUBEND = MEMORY_SIZE;
-    memset(&mem[0], 0, MEMORY_SIZE);
+    // ВРЕМЕННО: не очищаем память
+    // memset(&mem[0], 0, MEMORY_SIZE);
 
     stopLineNumber = 0;
     stopStmtNumber = 0;
     lineNumber = 0;
-    
+
     // Сбрасываем указатель данных для READ
     dataReadPtr = NULL;
 }

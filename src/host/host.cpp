@@ -12,7 +12,7 @@
 #include "../serialloader/serial_loader.h"
 
 // Уменьшаем размеры буферов
-#define TEMP_BUFFER_SIZE 256  // Уменьшили с 1024 до 256
+#define TEMP_BUFFER_SIZE 1024  // Размер буфера для программ
 #define INPUT_BUF_SIZE 32      // Уменьшили с 40 до 32
 
 static uint8_t temp_buffer[TEMP_BUFFER_SIZE];
@@ -67,7 +67,7 @@ static const RuMap ruMap[] PROGMEM = {
     {'N', 146, 84}, {'M', 156, 98}, {'<', 129, 160},
     {'>', 158, 176}, {'&', 149, 88}, {'*', 154, 173},
     {'(', 134, 163}, {')', 157, 175},
-    {240, 240, 217}, {241, 241, 218}, {242, 242, 238}
+    {240, 240, 126}
 };
 
 // Объявление функций
@@ -507,35 +507,36 @@ static void dir_check_callback(const char* name, uint16_t size) {
 bool host_loadExtEEPROM(const char* filename) {
     if (!ensure_eeprom()) return false;
     if (!filename || strlen(filename) == 0) return false;
-    
-    extern unsigned char mem[];
-    extern int sysPROGEND;
-    extern void reset();
-    
+
+    extern bool load_text_program(const uint8_t* buffer, size_t size);
+
     size_t size = 0;
-    
+
     if (!eeprom_load_file(filename, temp_buffer, &size)) {
         host_outputProgMemString(EEPROM_FILE_NOT_FOUND);
         host_newLine();
         host_showBuffer();
         return false;
     }
-    
+
     if (size > MEMORY_SIZE) {
         host_outputProgMemString(EEPROM_PROGRAM_TOO_BIG);
         host_newLine();
         return false;
     }
-    
-    reset();
-    memcpy(mem, temp_buffer, size);
-    sysPROGEND = size;
-    
-    sysSTACKSTART = sysSTACKEND = sysPROGEND;
-    sysVARSTART = sysVAREND = MEMORY_SIZE;
-    sysGOSUBSTART = sysGOSUBEND = MEMORY_SIZE;
+
+    // Загружаем текст и токенизируем с автоматическими номерами строк
+    if (!load_text_program(temp_buffer, size)) {
+        host_outputProgMemString(EEPROM_LOAD_FAILED);
+        host_newLine();
+        host_showBuffer();
+        return false;
+    }
+
+    host_outputProgMemString(EEPROM_LOAD_OK);
+    host_newLine();
     host_showBuffer();
-    
+
     return true;
 }
 
@@ -570,22 +571,30 @@ void host_extEEPROM_format() {
 bool host_saveExtEEPROM(const char* filename) {
     if (!ensure_eeprom()) return false;
     if (!filename || strlen(filename) == 0) return false;
-    
+
     extern unsigned char mem[];
     extern int sysPROGEND;
-    
-    bool result = eeprom_save_file(filename, mem, sysPROGEND);
-    
+    extern int program_to_text(uint8_t* buffer, int buffer_size);
+
+    // Конвертируем токенизированную программу в текст
+    uint8_t text_buffer[MEMORY_SIZE];
+    int text_size = program_to_text(text_buffer, sizeof(text_buffer));
+
+    if (text_size == 0 && sysPROGEND > 0) {
+        host_outputProgMemString(EEPROM_SAVE_FAILED);
+        return false;
+    }
+
+    bool result = eeprom_save_file(filename, text_buffer, text_size);
+
     if (result) {
         eeprom_sync();
     } else {
         host_outputProgMemString(EEPROM_SAVE_FAILED);
     }
-    
+
     return result;
 }
-
-// Добавить в host.cpp
 void lcd_cursor() {
     lcd.cursor();
 }
@@ -620,5 +629,6 @@ void lcd_printInt(int num) {
 }
 
 void lcd_write(char c) {
+    lcd.write(c);
     lcd.write(c);
 }

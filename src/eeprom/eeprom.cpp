@@ -270,68 +270,75 @@ static int find_file(const char* filename) {
 
 static uint16_t find_free_space(uint16_t size) {
     if (!eeprom_initialized) return 0;
-    
+
     uint16_t max_offset = CATALOG_SIZE;
-    
+
     for (int i = 0; i < MAX_FILES; i++) {
         if (catalog[i].flags & 0x01) {
             uint16_t end = catalog[i].offset + catalog[i].size;
             if (end > max_offset) {
                 max_offset = end;
             }
+            // Всегда продвигаемся за начало существующего файла
+            // даже если он пустой (size=0)
+            if (catalog[i].offset > max_offset) {
+                max_offset = catalog[i].offset;
+            }
         }
     }
-    
-    // Для пустых файлов (size=0) всегда есть место
+
     if (size == 0) {
-        return max_offset; // Просто следующий свободный адрес
+        return max_offset;
     }
-    
+
     if (max_offset + size > EEPROM_SIZE) {
         return 0;
     }
-    
+
     return max_offset;
 }
 
 bool eeprom_save_file(const char* filename, const uint8_t* data, size_t size) {
-    // Включаем светодиод на время работы
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
-    
+
     bool result = false;
-    
+
     if (!eeprom_initialized || !filename || !data || size > MAX_PROGRAM_SIZE) {
         digitalWrite(LED_PIN, LOW);
         return false;
     }
-    
+
     // Удаляем старый файл с таким именем
     eeprom_delete_file(filename);
-    
+
     int slot = find_free_slot();
     if (slot < 0) {
         digitalWrite(LED_PIN, LOW);
         return false;
     }
-    
+
     uint16_t offset = find_free_space((uint16_t)size);
     if (offset == 0) {
         digitalWrite(LED_PIN, LOW);
         return false;
     }
-    
+
     // Записываем данные только если size > 0
     if (size > 0) {
-        for (size_t i = 0; i < size; i++) {
-            uint16_t addr = offset + i;
-            if (!eeprom_write_byte(addr, data[i])) {
+        size_t i = 0;
+        while (i < size) {
+            uint8_t page_offset = (offset + i) % EEPROM_PAGE_SIZE;
+            uint8_t chunk = EEPROM_PAGE_SIZE - page_offset;
+            if (chunk > (size - i)) chunk = (uint8_t)(size - i);
+            if (chunk > 32) chunk = 32;
+
+            if (!eeprom_write_page_verified((uint16_t)(offset + i), &data[i], chunk)) {
                 digitalWrite(LED_PIN, LOW);
                 return false;
             }
-            delay(5);
+            i += chunk;
         }
-        delay(50);
     }
     
     // Обновляем каталог
@@ -345,12 +352,10 @@ bool eeprom_save_file(const char* filename, const uint8_t* data, size_t size) {
     catalog[slot].size = (uint16_t)size;
     catalog[slot].flags = 0x01;
     catalog_dirty = true;
-    
+
     result = flush_catalog();
-    
-    // Выключаем светодиод
+
     digitalWrite(LED_PIN, LOW);
-    
     return result;
 }
 
@@ -382,22 +387,15 @@ bool eeprom_load_file(const char* filename, uint8_t* buffer, size_t* size) {
         digitalWrite(LED_PIN, LOW);
         return result;
     }
-    
+
     if (!eeprom_read_buffer(catalog[slot].offset, buffer, catalog[slot].size)) {
         digitalWrite(LED_PIN, LOW);
         return false;
     }
-    
+
     *size = catalog[slot].size;
     result = true;
-    
-    // Только одна строка отладки
-    #ifdef EEPROM_DEBUG
-    Serial.print(F("Loaded "));
-    Serial.print(*size);
-    Serial.println(F(" bytes"));
-    #endif
-    
+
     digitalWrite(LED_PIN, LOW);
     return result;
 }

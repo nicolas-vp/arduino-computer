@@ -10,6 +10,11 @@
 #define LAUNCH_CMD_DEL   2  // FN+3
 #define LAUNCH_CMD_RUN   3  // FN+4
 
+// Специальные команды
+#define LAUNCH_CMD_FORMAT 10
+#define LAUNCH_CMD_ASCII   11
+#define LAUNCH_CMD_MUSIC   12
+
 // Инициализация лаунчера
 void launcher_init();
 
@@ -27,5 +32,8 @@ uint16_t launcher_get_program_size(int index);
 
 // Выполнить команду над программой
 void launcher_execute_command(int program_index, int command);
+
+// Выполнить специальную команду
+void launcher_execute_special_command(uint8_t cmd);
 
 #endif

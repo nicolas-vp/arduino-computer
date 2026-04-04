@@ -29,7 +29,7 @@ void playNote(int frequency) {
     int pauseBetweenNotes = noteDuration * 1.30;
 
     delay(pauseBetweenNotes);
-    noTone(8);
+    // noTone(8); // Убираем этот вызов, т.к. tone() сам отключает тон
 }
 
 int currentOctave = 4;
@@ -76,24 +76,24 @@ void drawInterface() {
   }
 }
 
-void handleInput(char c) {
-  if (c == -73) {              // вправо
+void handleInput(unsigned char c) {
+  if (c == KEY_RIGHT) {              // вправо
     if (selectedNote < 11) selectedNote++;
   }
 
-  else if (c == -76) {         // влево
+  else if (c == KEY_LEFT) {         // влево
     if (selectedNote > 0) selectedNote--;
   }
 
-  else if (c == -75) {         // вверх = октава +
+  else if (c == KEY_UP) {         // вверх = октава +
     if (currentOctave < 8) currentOctave++;
   }
 
-  else if (c == -74) {         // вниз = октава -
+  else if (c == KEY_DOWN) {         // вниз = октава -
     if (currentOctave > 0) currentOctave--;
   }
 
-  else if (c == ' ') {         // пробел = играть
+  else if (c == ' ' or c == KEY_ENTER) {         // пробел = играть
     int index = getGlobalIndex();
     int freq = noteFreqs[index];
     playNote(freq);
@@ -107,7 +107,7 @@ void musicPlayer() {
 
     drawInterface();
     while (1) {
-        char c = readKey();
+        unsigned char c = readKey();
         if (!c) continue;
 
         handleInput(c);
@@ -119,7 +119,6 @@ void musicPlayer() {
         }
     }
 }
-
 
 int parseNote(const char* noteStr) {
 

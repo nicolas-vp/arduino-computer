@@ -98,8 +98,9 @@ const char DIR_SIZE_CLOSE[] PROGMEM = "\x20\xA1\xA0\xA9\xE2\x29"; // " байт)
 const char INIT_MESSAGE[] PROGMEM = "\x9D\x82\x8C\x20\xA3\xAE\xE2\xAE\xA2\xA0\x2C\x20\x8F\x87\x93\x3A";  // "ЭВМ готова, ПЗУ:"
 const char BYTES_FREE[] PROGMEM = "\xA1\xA0\xA9\xE2\x20\xE1\xA2\xAE\xA1\xAE\xA4\xAD\xAE"; // "байт свободно"
 
-const char LAUNCHER_HELP_NEW[] PROGMEM = "\x46\x31\x20\x8D\xAE\xA2\xEB\xA9";     // "F1 Новый
-const char LAUNCHER_HELP_EDIT[] PROGMEM = "\x46\x32\x20\x90\xA5\xA4\xA0\xAA";    // "F2 Редак
-const char LAUNCHER_HELP_DELETE[] PROGMEM = "\x46\x33\x20\x93\xA4\xA0\xAB\x2E";  // "F3 Удал.
-const char LAUNCHER_HELP_RUN[] PROGMEM = "\x46\x34\x20\x91\xE2\xA0\xE0\xE2";     // "F4 Старт
+const char LAUNCHER_HELP_NEW[] PROGMEM = "\x31\x20\x8D\xAE\xA2\xEB\xA9";     // "F1 Новый
+const char LAUNCHER_HELP_EDIT[] PROGMEM = "\x32\x20\x90\xA5\xA4\xA0\xAA";    // "F2 Редак
+const char LAUNCHER_HELP_DELETE[] PROGMEM = "\x33\x20\x93\xA4\xA0\xAB\x2E";  // "F3 Удал.
+const char LAUNCHER_HELP_RUN[] PROGMEM = "\x34\x20\x91\xE2\xA0\xE0\xE2";     // "F4 Старт
 
+const char NEW_NAME[] PROGMEM = "\x82\xA2\xA5\xA4\xA8\xE2\xA5\x20\xA8\xAC\xEF\x20\xE4\xA0\xA9\xAB\xA0";  // "Введите имя файла"
