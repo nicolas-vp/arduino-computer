@@ -388,7 +388,7 @@ static bool editor_confirm_exit() {
     
     lcd_setCursor(0, INFO_LINE);
     lcd_print("Save? Y/N     ");
-    
+
     while (true) {
         unsigned char key = readKey();
         if (key == 'Y' || key == 'y') {

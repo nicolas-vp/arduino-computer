@@ -68,4 +68,5 @@ extern const char LAUNCHER_HELP_EDIT[];
 extern const char LAUNCHER_HELP_DELETE[];
 extern const char LAUNCHER_HELP_RUN[];
 
+extern const char NEW_NAME[];
 #endif

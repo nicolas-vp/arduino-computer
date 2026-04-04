@@ -9,7 +9,7 @@
 #define EEPROM_PAGE_SIZE 64
 #define MAX_FILES 20
 #define FILENAME_LEN 16
-#define CATALOG_SIZE 256
+#define CATALOG_SIZE 512
 #define MAX_PROGRAM_SIZE (EEPROM_SIZE - CATALOG_SIZE)
 
 // Структура записи файла в каталоге

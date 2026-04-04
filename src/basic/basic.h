@@ -77,9 +77,10 @@
 #define TOKEN_PLAY 73
 #define TOKEN_FORMAT 74
 #define TOKEN_BEEP 75
+#define TOKEN_TEST_PRINT 76
 
 #define FIRST_IDENT_TOKEN 23
-#define LAST_IDENT_TOKEN 75
+#define LAST_IDENT_TOKEN 76
 
 #define FIRST_NON_ALPHA_TOKEN 8
 #define LAST_NON_ALPHA_TOKEN 22
@@ -113,9 +114,7 @@
 #define ERROR_BAD_PARAMETER 24
 #define ERROR_OUT_OF_DATA 25
 
-#define BASIC_DEBUG 1
-
-#define MAX_IDENT_LEN 8
+#define MAX_IDENT_LEN 16
 #define MAX_NUMBER_LEN 10
 
 #define MEMORY_SIZE 1024
@@ -150,5 +149,14 @@ extern const char *const errorTable[];
 void reset();
 int tokenize(unsigned char *input, unsigned char *output, int outputSize);
 int processInput(unsigned char *tokenBuf);
+
+// Конвертация токенизированной программы в текст
+int program_to_text(uint8_t* buffer, int buffer_size);
+
+// Загрузка текстовой программы с автоматическими номерами строк
+bool load_text_program(const uint8_t* buffer, size_t size);
+
+// Переменная для получения длины токенизированных данных
+extern int tokenOutLeft;
 
 #endif
