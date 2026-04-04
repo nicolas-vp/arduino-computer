@@ -630,4 +630,5 @@ void lcd_printInt(int num) {
 
 void lcd_write(char c) {
     lcd.write(c);
+    lcd.write(c);
 }

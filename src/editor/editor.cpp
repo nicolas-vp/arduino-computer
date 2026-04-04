@@ -4,6 +4,7 @@
 #include "../keyboard/keyboard.h"
 #include <string.h>
 #include <Arduino.h>
+#include <LiquidCrystal.h>
 
 #define EDITOR_SCREEN_HEIGHT 3
 #define INFO_LINE 3
@@ -16,6 +17,15 @@ static int screen_col_offset = 0;
 static int cursor_screen_x = 0;
 static int cursor_screen_y = 0;
 
+// Раскладка клавиатуры
+extern bool ruMode;
+extern void switchLayout();
+extern unsigned char mapLayout(unsigned char c);
+
+// Таймер исчезновения индикатора языка
+static unsigned long lang_indicator_time = 0;
+unsigned char mapLcdChar(unsigned char c);
+
 extern void lcd_cursor();
 extern void lcd_noCursor();
 extern void lcd_blink();
@@ -24,6 +34,9 @@ extern void lcd_setCursor(int x, int y);
 extern void lcd_print(const char* str);
 extern void lcd_write(char c);
 extern void lcd_clear();
+extern unsigned char mapLcdChar(unsigned char c);
+
+extern LiquidCrystal lcd;
 
 static void update_screen_offset() {
     if (current_file.size == 0) {
@@ -92,81 +105,85 @@ static void update_screen_offset() {
 }
 
 void editor_display() {
-    lcd_clear();
-    
+    lcd.clear();
+    delay(5);
+
     int file_idx = screen_offset;
     int current_screen_line = 0;
-    
-    while (current_screen_line < EDITOR_SCREEN_HEIGHT && file_idx < current_file.size) {
-        lcd_setCursor(0, current_screen_line);
-        
+
+    while (current_screen_line < EDITOR_SCREEN_HEIGHT) {
+        lcd.setCursor(0, current_screen_line);
+        delay(1);
+
+        if (file_idx >= current_file.size) {
+            // Пустая строка — пробелы
+            for (int x = 0; x < SCREEN_WIDTH; x++) lcd.print(' ');
+            current_screen_line++;
+            continue;
+        }
+
+        // Пропускаем символы до screen_col_offset
         int skipped = 0;
         int temp_idx = file_idx;
-        
-        while (skipped < screen_col_offset && 
-               temp_idx < current_file.size && 
+        while (skipped < screen_col_offset &&
+               temp_idx < current_file.size &&
                current_file.data[temp_idx] != '\n') {
             skipped++;
             temp_idx++;
         }
-        
+
         if (skipped < screen_col_offset) {
-            for (int x = 0; x < SCREEN_WIDTH; x++) lcd_write(' ');
-            
-            while (file_idx < current_file.size && current_file.data[file_idx] != '\n') {
-                file_idx++;
-            }
-            if (file_idx < current_file.size && current_file.data[file_idx] == '\n') {
-                file_idx++;
-            }
+            // Вся строка до offset — пробелы
+            for (int x = 0; x < SCREEN_WIDTH; x++) lcd.print(' ');
+            // Переходим к следующему \n
+            while (file_idx < current_file.size && current_file.data[file_idx] != '\n') file_idx++;
+            if (file_idx < current_file.size) file_idx++; // skip \n
             current_screen_line++;
             continue;
         }
-        
+
         file_idx = temp_idx;
         int x = 0;
-        
-        while (file_idx < current_file.size && 
-               current_file.data[file_idx] != '\n' && 
+
+        while (file_idx < current_file.size &&
+               current_file.data[file_idx] != '\n' &&
                x < SCREEN_WIDTH) {
-            
-            char c = current_file.data[file_idx];
-            
-            if (c >= 32 && c <= 126) {
-                lcd_write(c);
+            unsigned char c = (unsigned char)current_file.data[file_idx];
+            if (c >= 32) {
+                lcd.write(mapLcdChar(c));
             } else {
-                lcd_write('.');
+                lcd.write('.');
             }
-            
             file_idx++;
             x++;
         }
-        
+
         while (x < SCREEN_WIDTH) {
-            lcd_write(' ');
+            lcd.print(' ');
             x++;
         }
-        
+
         if (file_idx < current_file.size && current_file.data[file_idx] == '\n') {
             file_idx++;
         }
-        
         current_screen_line++;
     }
     
     while (current_screen_line < EDITOR_SCREEN_HEIGHT) {
-        lcd_setCursor(0, current_screen_line);
-        for (int x = 0; x < SCREEN_WIDTH; x++) lcd_write(' ');
+        lcd.setCursor(0, current_screen_line);
+        delay(1);
+        for (int x = 0; x < SCREEN_WIDTH; x++) lcd.print(' ');
         current_screen_line++;
     }
-    
-    lcd_setCursor(0, INFO_LINE);
-    
+
+    lcd.setCursor(0, INFO_LINE);
+    delay(1);
+
     int name_len = strlen(current_file.name);
-    for (int i = 0; i < 8 && i < name_len; i++) lcd_write(current_file.name[i]);
-    if (name_len > 8) lcd_write('+');
-    if (current_file.modified) lcd_write('*');
-    
+    for (int i = 0; i < 8 && i < name_len; i++) lcd.print(current_file.name[i]);
+    if (name_len > 8) lcd.print('+');
+    if (current_file.modified) lcd.print('*');
+
     int line_num = 1;
     int col_num = 1;
     for (int i = 0; i < file_pos && i < current_file.size; i++) {
@@ -177,11 +194,12 @@ void editor_display() {
             col_num++;
         }
     }
-    
-    lcd_setCursor(14, INFO_LINE);
+
+    lcd.setCursor(14, INFO_LINE);
+    delay(1);
     char pos_buf[10];
     sprintf(pos_buf, "%d:%d", line_num, col_num);
-    lcd_print(pos_buf);
+    lcd.print(pos_buf);
     
     int cursor_file_pos = screen_offset;
     cursor_screen_x = 0;
@@ -219,9 +237,9 @@ void editor_display() {
     }
     
     if (cursor_screen_y < EDITOR_SCREEN_HEIGHT) {
-        lcd_setCursor(cursor_screen_x, cursor_screen_y);
+        lcd.setCursor(cursor_screen_x, cursor_screen_y);
     } else {
-        lcd_setCursor(0, EDITOR_SCREEN_HEIGHT - 1);
+        lcd.setCursor(0, EDITOR_SCREEN_HEIGHT - 1);
     }
 }
 
@@ -426,7 +444,18 @@ void editor_run(const char* filename) {
             delay(10);
             continue;
         }
-        
+
+        unsigned long now = millis();
+        // Debounce — игнорируем повтор того же символа
+        static unsigned char prev_key = 0;
+        static unsigned long prev_key_ms = 0;
+        if (key == prev_key && (now - prev_key_ms) < 300) {
+            delay(10);
+            continue;
+        }
+        prev_key = key;
+        prev_key_ms = now;
+
         switch(key) {
             case 0xB5:
                 editor_move_up();
@@ -439,6 +468,10 @@ void editor_run(const char* filename) {
                 break;
             case 0xB7:
                 editor_move_right();
+                break;
+            case 175:
+                switchLayout();
+                lang_indicator_time = millis();
                 break;
             case KEY_ENTER:
                 editor_insert_char('\n');
@@ -459,6 +492,7 @@ void editor_run(const char* filename) {
                 break;
             default:
                 if (key >= 32 && key <= 126) {
+                    key = mapLayout(key);
                     editor_insert_char(key);
                 }
                 break;
@@ -466,5 +500,32 @@ void editor_run(const char* filename) {
         
         update_screen_offset();
         editor_display();
+
+        // Показываем индикатор раскладки только 1 секунду после переключения
+        if (lang_indicator_time > 0 && (now - lang_indicator_time) < 1000) {
+            lcd.setCursor(SCREEN_WIDTH - 3, 0);
+            if (ruMode) {
+                lcd.print((char)146); lcd.print('P'); lcd.print((char)169);
+            } else {
+                lcd.print((char)147); lcd.print('E'); lcd.print('N');
+            }
+            // Возвращаем курсор на позицию
+            if (cursor_screen_y < EDITOR_SCREEN_HEIGHT) {
+                lcd.setCursor(cursor_screen_x, cursor_screen_y);
+            } else {
+                lcd.setCursor(0, EDITOR_SCREEN_HEIGHT - 1);
+            }
+        } else if (lang_indicator_time > 0 && (now - lang_indicator_time) >= 1000) {
+            // Индикатор истёк — очистим и сбросим таймер
+            lcd.setCursor(SCREEN_WIDTH - 3, 0);
+            lcd.print(' '); lcd.print(' '); lcd.print(' ');
+            // Возвращаем курсор на позицию
+            if (cursor_screen_y < EDITOR_SCREEN_HEIGHT) {
+                lcd.setCursor(cursor_screen_x, cursor_screen_y);
+            } else {
+                lcd.setCursor(0, EDITOR_SCREEN_HEIGHT - 1);
+            }
+            lang_indicator_time = 0;
+        }
     }
 }
