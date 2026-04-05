@@ -3,13 +3,13 @@
 #include <EEPROM.h>
 #include <string.h>
 #include "host.h"
+#include "../config.h"
 #include "../basic/basic.h"
 #include "../keyboard/keyboard.h"
 #include "../utils/utils_ascii.h"
 #include "../utils/utils_music.h"
 #include "../eeprom/eeprom.h"
 #include "../lang/russian_strings.h"
-#include "../serialloader/serial_loader.h"
 
 // Уменьшаем размеры буферов
 #define TEMP_BUFFER_SIZE 1024  // Размер буфера для программ
@@ -32,7 +32,7 @@ static int historyCount = 0;
 static int historyIndex = -1;
 static char savedInput[INPUT_BUF_SIZE];
 
-char buzPin = 8;
+static char buzPin = 8;
 
 const unsigned bytesFreeStr[] PROGMEM = {161, 160, 169, 226, 32, 225, 162, 174, 161, 174, 164, 173, 174, 0};
 bool ruMode = false;
@@ -73,7 +73,6 @@ static const RuMap ruMap[] PROGMEM = {
 // Объявление функций
 unsigned char mapLayout(unsigned char c);
 unsigned char mapLcdChar(unsigned char c);
-
 
 unsigned char mapLayout(unsigned char c) {
     if (!ruMode) return c;
@@ -333,10 +332,6 @@ char *host_readLine() {
             musicPlayer();
             continue;
         }
-        if ((int)c == 131) {
-            handleSerialLoad();
-            continue;
-        }
 
         if ((c == 0x08 || c == 0x7F)) {
             historyIndex = -1;
@@ -411,7 +406,6 @@ void host_outputFreeMem(unsigned int val) {
     host_newLine();
     host_outputInt(val);
     host_outputChar(' ');
-    // host_outputProgMemString(bytesFreeStr);
 }
 
 void host_saveProgram(bool autoexec) {
@@ -483,10 +477,6 @@ void host_pinMode(int pin, int mode) {
 }
 
 void host_play(char *str) {
-    #ifdef HOST_DEBUG
-    Serial.print(F("host_play: "));
-    Serial.println(str);
-    #endif
     play(str);
 }
 
@@ -611,10 +601,6 @@ void lcd_noBlink() {
     lcd.noBlink();
 }
 
-void lcd_clear() {
-    lcd.clear();
-}
-
 // Добавить в host.cpp
 void lcd_setCursor(int x, int y) {
     lcd.setCursor(x, y);
@@ -622,13 +608,4 @@ void lcd_setCursor(int x, int y) {
 
 void lcd_print(const char* str) {
     lcd.print(str);
-}
-
-void lcd_printInt(int num) {
-    lcd.print(num);
-}
-
-void lcd_write(char c) {
-    lcd.write(c);
-    lcd.write(c);
 }

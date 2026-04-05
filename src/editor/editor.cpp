@@ -32,8 +32,6 @@ extern void lcd_blink();
 extern void lcd_noBlink();
 extern void lcd_setCursor(int x, int y);
 extern void lcd_print(const char* str);
-extern void lcd_write(char c);
-extern void lcd_clear();
 extern unsigned char mapLcdChar(unsigned char c);
 
 extern LiquidCrystal lcd;
@@ -275,16 +273,6 @@ static void editor_backspace() {
     }
 }
 
-static void editor_delete() {
-    if (file_pos < current_file.size) {
-        for (int i = file_pos; i < current_file.size - 1; i++) {
-            current_file.data[i] = current_file.data[i + 1];
-        }
-        current_file.size--;
-        current_file.modified = true;
-    }
-}
-
 static void editor_move_up() {
     if (file_pos == 0) return;
     
@@ -418,13 +406,6 @@ static bool editor_confirm_exit() {
         }
         delay(50);
     }
-}
-
-void editor_init() {
-    memset(&current_file, 0, sizeof(TextFile));
-    file_pos = 0;
-    screen_offset = 0;
-    screen_col_offset = 0;
 }
 
 void editor_run(const char* filename) {

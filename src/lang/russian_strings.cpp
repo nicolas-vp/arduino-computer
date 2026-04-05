@@ -65,8 +65,6 @@ const char* const errorTable[] PROGMEM = {
 // Сообщения для EEPROM
 // ------------------------------------------------------------------
 const char EEPROM_NOT_AVAILABLE[] PROGMEM = "EEPROM\x20\xAD\xA5\x20\xA4\xAE\xE1\xE2\xE3\xAF\xAD\xA0"; // "EEPROM не доступна"
-const char EEPROM_NOT_FOUND[] PROGMEM = "EEPROM\x20\xAD\xA5\x20\xAD\xA0\xA9\xA4\xA5\xAD\xA0"; // "EEPROM не найдена"
-const char EEPROM_NEEDS_FORMAT[] PROGMEM = "EEPROM\x20\xE2\xE0\xA5\xA1\xE3\xA5\xE2\x20\xE4\xAE\xE0\xAC\xA0\xE2\xA8\xE0\xAE\xA2\xA0\xAD\xA8\xEF"; // "EEPROM требует форматирования"
 const char EEPROM_FORMAT_COMPLETE[] PROGMEM = "EEPROM\x20\xAE\xE2\xE4\xAE\xE0\xAC\xA0\xE2\xA8\xE0\xAE\xA2\xA0\xAD\xA0"; // "EEPROM отформатирована"
 const char EEPROM_SAVE_OK[] PROGMEM = "\x91\xAE\xE5\xE0\xA0\xAD\xA5\xAD\xAE"; // "Сохранено"
 const char EEPROM_SAVE_FAILED[] PROGMEM = "\x8E\xE8\xA8\xA1\xAA\xA0\x20\xE1\xAE\xE5\xE0\xA0\xAD\xA5\xAD\xA8\xEF"; // "Ошибка сохранения"
@@ -81,10 +79,6 @@ const char EEPROM_DELETE_OK[] PROGMEM = "\x93\xA4\xA0\xAB\xA5\xAD"; // "Удал
 // Сообщения для загрузки/сохранения
 // ------------------------------------------------------------------
 const char LOADING[] PROGMEM = "\x87\xA0\xA3\xE0\xE3\xA7\xAA\xA0\x20"; // "Загрузка "
-const char SAVING[] PROGMEM = "\x91\xAE\xE5\xE0\xA0\xAD\xA5\xAD\xA8\xA5\x20"; // "Сохранение "
-const char SIZE_BYTES[] PROGMEM = "\x20\xA1\xA0\xA9\xE2"; // " байт"
-const char FIRST_BYTES[] PROGMEM = "\x8F\xA5\xE0\xA2\xEB\xA5\x20\xA1\xA0\xA9\xE2\xEB\x3A\x20"; // "Первые байты: "
-const char COPIED_TO_MEMORY[] PROGMEM = "\x91\xAA\xAE\xAF\xA8\xE0\xAE\xA2\xA0\xAD\xAE\x20\xA2\x20\xAF\xA0\xAC\xEF\xE2\xEC\x20\x30\x2D"; // "Скопировано в память 0-"
 
 // ------------------------------------------------------------------
 // Сообщения для DIR
@@ -95,7 +89,6 @@ const char DIR_SIZE_CLOSE[] PROGMEM = "\x20\xA1\xA0\xA9\xE2\x29"; // " байт)
 // ------------------------------------------------------------------
 // Сообщения для инициализации
 // ------------------------------------------------------------------
-const char INIT_MESSAGE[] PROGMEM = "\x9D\x82\x8C\x20\xA3\xAE\xE2\xAE\xA2\xA0\x2C\x20\x8F\x87\x93\x3A";  // "ЭВМ готова, ПЗУ:"
 const char BYTES_FREE[] PROGMEM = "\xA1\xA0\xA9\xE2\x20\xE1\xA2\xAE\xA1\xAE\xA4\xAD\xAE"; // "байт свободно"
 
 const char LAUNCHER_HELP_NEW[] PROGMEM = "\x31\x20\x8D\xAE\xA2\xEB\xA9";     // "F1 Новый
@@ -104,3 +97,5 @@ const char LAUNCHER_HELP_DELETE[] PROGMEM = "\x33\x20\x93\xA4\xA0\xAB\x2E";  // 
 const char LAUNCHER_HELP_RUN[] PROGMEM = "\x34\x20\x91\xE2\xA0\xE0\xE2";     // "F4 Старт
 
 const char NEW_NAME[] PROGMEM = "\x82\xA2\xA5\xA4\xA8\xE2\xA5\x20\xA8\xAC\xEF\x20\xE4\xA0\xA9\xAB\xA0";  // "Введите имя файла"
+
+const char PRESS_SPACE[] PROGMEM = "\x5B\xAD\xA0\xA6\xAC\xA8\xE2\xA5\x20\xAF\xE0\xAE\xA1\xA5\xAB\x5D";  // "[нажмите пробел]"

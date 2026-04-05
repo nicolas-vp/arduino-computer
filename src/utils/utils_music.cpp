@@ -32,8 +32,8 @@ void playNote(int frequency) {
     // noTone(8); // Убираем этот вызов, т.к. tone() сам отключает тон
 }
 
-int currentOctave = 4;
-int selectedNote = 0;
+static int currentOctave = 4;
+static int selectedNote = 0;
 
 int getGlobalIndex() {
   int index = (currentOctave * 12) + selectedNote - 12; 

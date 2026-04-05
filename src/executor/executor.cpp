@@ -4,7 +4,6 @@
 #include "../lang/russian_strings.h"
 #include "../keyboard/keyboard.h"
 #include "../config.h"
-#include <string.h>
 
 extern unsigned char mem[];
 extern int sysPROGEND;
@@ -88,7 +87,7 @@ bool executor_run_buffer(const uint8_t* buffer, size_t size) {
 
     int ret = processInput(run_token);
 
-    host_outputProgMemString(PSTR("Press SPACE..."));
+    host_outputProgMemString(PRESS_SPACE);
     host_showBuffer();
 
     unsigned char key;
@@ -115,12 +114,4 @@ bool executor_run_buffer(const uint8_t* buffer, size_t size) {
     host_showBuffer();
 
     return true;
-}
-
-int executor_get_line_count() {
-    return loaded_lines;
-}
-
-int executor_get_error_line() {
-    return error_line;
 }

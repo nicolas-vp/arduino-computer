@@ -4,7 +4,7 @@
 
 extern LiquidCrystal lcd;
 
-int asciiBase = 32;
+static int asciiBase = 32;
 
 void printAsciiCell(int x, int y, uint8_t code) {
     lcd.setCursor(x, y);
@@ -35,8 +35,6 @@ void drawAsciiScreen() {
         }
     }
 }
-
-
 
 void showAscii() {
     drawAsciiScreen();
