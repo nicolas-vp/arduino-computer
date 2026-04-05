@@ -36,8 +36,6 @@ extern const char* const errorTable[];
 
 // Сообщения для EEPROM
 extern const char EEPROM_NOT_AVAILABLE[];
-extern const char EEPROM_NOT_FOUND[];
-extern const char EEPROM_NEEDS_FORMAT[];
 extern const char EEPROM_FORMAT_COMPLETE[];
 extern const char EEPROM_SAVE_OK[];
 extern const char EEPROM_SAVE_FAILED[];
@@ -50,17 +48,12 @@ extern const char EEPROM_DELETE_OK[];
 
 // Сообщения для загрузки/сохранения
 extern const char LOADING[];
-extern const char SAVING[];
-extern const char SIZE_BYTES[];
-extern const char FIRST_BYTES[];
-extern const char COPIED_TO_MEMORY[];
 
 // Сообщения для DIR
 extern const char DIR_SIZE_OPEN[];
 extern const char DIR_SIZE_CLOSE[];
 
 // Сообщения для инициализации
-extern const char INIT_MESSAGE[];
 extern const char BYTES_FREE[];
 
 extern const char LAUNCHER_HELP_NEW[];
@@ -69,4 +62,5 @@ extern const char LAUNCHER_HELP_DELETE[];
 extern const char LAUNCHER_HELP_RUN[];
 
 extern const char NEW_NAME[];
+extern const char PRESS_SPACE[];
 #endif

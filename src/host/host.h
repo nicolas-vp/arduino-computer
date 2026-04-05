@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <Arduino.h>
 
-#define SCREEN_WIDTH        20
-#define SCREEN_HEIGHT       4
 #define MAGIC_AUTORUN_NUMBER    0xFC
 
 // Инициализация
@@ -52,9 +50,6 @@ bool host_removeExtEEPROM(const char* filename);
 void host_dirExtEEPROM();
 void host_extEEPROM_format();
 
-#define SHARED_BUFFER_SIZE 1024
-extern uint8_t shared_buffer[];
-
 // Функции для управления LCD
 void lcd_cursor();
 void lcd_noCursor();
@@ -64,7 +59,5 @@ void lcd_clear();
 
 void lcd_setCursor(int x, int y);
 void lcd_print(const char* str);
-void lcd_printInt(int num);
-void lcd_write(char c);
 
 #endif

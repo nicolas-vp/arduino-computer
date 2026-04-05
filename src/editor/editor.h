@@ -11,7 +11,6 @@ struct TextFile {
     bool modified;
 };
 
-void editor_init();
 void editor_run(const char* filename);
 void editor_display();
 

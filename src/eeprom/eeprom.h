@@ -41,9 +41,6 @@ bool eeprom_sync();
 void eeprom_format();
 void eeprom_purge_cache();
 void eeprom_refresh_catalog();
-void eeprom_check_catalog();
-void eeprom_debug_dump(const char* filename);
-void eeprom_test_basic();
 
 // Низкоуровневые операции
 bool eeprom_write_byte(uint16_t addr, uint8_t data);
@@ -51,7 +48,5 @@ uint8_t eeprom_read_byte(uint16_t addr);
 bool eeprom_write_page(uint16_t addr, const uint8_t* data, uint8_t length);
 bool eeprom_write_page_verified(uint16_t addr, const uint8_t* data, uint8_t length);
 bool eeprom_read_buffer(uint16_t addr, uint8_t* buffer, size_t length);
-
-void eeprom_check_address(const char* filename);
 
 extern bool eeprom_initialized;

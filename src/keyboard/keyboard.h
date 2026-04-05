@@ -21,12 +21,6 @@
 #define KEY_FN3     0x83   // FN+3
 #define KEY_FN4     0x84   // FN+4
 
-// Специальные клавиши для вашего проекта
-#define KEY_LAYOUT  0xAF   // 175 - переключение раскладки
-#define KEY_ASCII   0x81   // 129 - показать ASCII таблицу
-#define KEY_MUSIC   0x82   // 130 - музыкальный плеер
-#define KEY_SERIAL  0x83   // 131 - последовательная загрузка
-
 char readKey();
 
 #endif

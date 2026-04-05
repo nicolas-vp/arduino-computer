@@ -1,11 +1,8 @@
 #include "launcher.h"
 #include "../host/host.h"
 #include "../eeprom/eeprom.h"
-#include "../basic/basic.h"
 #include "../lang/russian_strings.h"
 #include "../keyboard/keyboard.h"
-#include "../editor/editor.h"
-#include "../executor/executor.h"
 #include "../utils/utils_ascii.h"
 #include "../utils/utils_music.h"
 
@@ -77,8 +74,6 @@ void launcher_run() {
 
     program_count = 0;
     eeprom_list_files(collect_program_callback);
-
-    // Добавляем специальные пункты в конец
     add_special_items();
 
     selected_program = 0;
@@ -280,10 +275,7 @@ void launcher_execute_command(int program_index, int command) {
                 } else {
                     host_cls();
                     host_moveCursor(0, 0);
-                    host_outputProgMemString(PSTR("Running: "));
-                    host_outputString((char*)prog_name);
                     host_showBuffer();
-                    delay(500);
 
                     extern bool executor_run_program(const char* filename);
                     executor_run_program(prog_name);

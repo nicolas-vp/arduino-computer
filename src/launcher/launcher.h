@@ -21,15 +21,6 @@ void launcher_init();
 // Запуск лаунчера (показывает список программ)
 void launcher_run();
 
-// Получение количества программ
-int launcher_get_program_count();
-
-// Получение имени программы по индексу
-const char* launcher_get_program_name(int index);
-
-// Получение размера программы по индексу
-uint16_t launcher_get_program_size(int index);
-
 // Выполнить команду над программой
 void launcher_execute_command(int program_index, int command);
 
