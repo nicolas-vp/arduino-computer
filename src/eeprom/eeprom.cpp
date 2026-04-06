@@ -86,22 +86,23 @@ bool eeprom_read_buffer(uint16_t addr, uint8_t* buffer, size_t length) {
 // Базовая функция записи страницы
 bool eeprom_write_page(uint16_t addr, const uint8_t* data, uint8_t length) {
     if (length == 0 || length > EEPROM_PAGE_SIZE) return false;
-    
-    if (length > 32) return false;
-    
+    // Ограничиваем 30 байтами: 2 байта адреса + 30 данных = 32 (TWI буфер)
+    if (length > 30) return false;
+
     uint8_t page_offset = addr % EEPROM_PAGE_SIZE;
     if (page_offset + length > EEPROM_PAGE_SIZE) return false;
-    
+
     Wire.beginTransmission((uint8_t)EEPROM_I2C_ADDR);
     Wire.write((uint8_t)((addr >> 8) & 0xFF));
     Wire.write((uint8_t)(addr & 0xFF));
-    
+
     for (uint8_t i = 0; i < length; i++) {
         Wire.write(data[i]);
     }
-    
-    if (Wire.endTransmission() != 0) return false;
-    
+
+    int8_t status = Wire.endTransmission();
+    if (status != 0) return false;
+
     delay(10);
     return true;
 }
@@ -111,20 +112,17 @@ bool eeprom_write_page_verified(uint16_t addr, const uint8_t* data, uint8_t leng
     if (!eeprom_write_page(addr, data, length)) {
         return false;
     }
-    
+
     delay(20);
-    
-    uint8_t verify_buf[EEPROM_PAGE_SIZE];
-    if (!eeprom_read_buffer(addr, verify_buf, length)) {
-        return false;
-    }
-    
+
+    // Верифицируем побайтово, без большого буфера
     for (uint8_t i = 0; i < length; i++) {
-        if (verify_buf[i] != data[i]) {
+        uint8_t read_back = eeprom_read_byte(addr + i);
+        if (read_back != data[i]) {
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -298,14 +296,31 @@ static uint16_t find_free_space(uint16_t size) {
     return max_offset;
 }
 
+static void blink_error(int count) {
+    pinMode(LED_PIN, OUTPUT);
+    for (int i = 0; i < count * 2; i++) {
+        digitalWrite(LED_PIN, HIGH);
+        delay(150);
+        digitalWrite(LED_PIN, LOW);
+        delay(150);
+    }
+    delay(500);
+}
+
 bool eeprom_save_file(const char* filename, const uint8_t* data, size_t size) {
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
 
-    bool result = false;
-
-    if (!eeprom_initialized || !filename || !data || size > MAX_PROGRAM_SIZE) {
-        digitalWrite(LED_PIN, LOW);
+    if (!eeprom_initialized) {
+        blink_error(1);
+        return false;
+    }
+    if (!filename || !data) {
+        blink_error(2);
+        return false;
+    }
+    if (size > MAX_PROGRAM_SIZE) {
+        blink_error(3);
         return false;
     }
 
@@ -314,13 +329,13 @@ bool eeprom_save_file(const char* filename, const uint8_t* data, size_t size) {
 
     int slot = find_free_slot();
     if (slot < 0) {
-        digitalWrite(LED_PIN, LOW);
+        blink_error(4);
         return false;
     }
 
     uint16_t offset = find_free_space((uint16_t)size);
     if (offset == 0) {
-        digitalWrite(LED_PIN, LOW);
+        blink_error(5);
         return false;
     }
 
@@ -331,21 +346,22 @@ bool eeprom_save_file(const char* filename, const uint8_t* data, size_t size) {
             uint8_t page_offset = (offset + i) % EEPROM_PAGE_SIZE;
             uint8_t chunk = EEPROM_PAGE_SIZE - page_offset;
             if (chunk > (size - i)) chunk = (uint8_t)(size - i);
-            if (chunk > 32) chunk = 32;
+            // Ограничиваем 30 байтами: 2 байта адреса + 30 данных = 32 (TWI буфер)
+            if (chunk > 30) chunk = 30;
 
             if (!eeprom_write_page_verified((uint16_t)(offset + i), &data[i], chunk)) {
-                digitalWrite(LED_PIN, LOW);
+                blink_error(6);
                 return false;
             }
             i += chunk;
         }
     }
-    
+
     // Обновляем каталог
     char safe_name[FILENAME_LEN];
     strncpy(safe_name, filename, FILENAME_LEN-1);
     safe_name[FILENAME_LEN-1] = '\0';
-    
+
     strncpy(catalog[slot].name, safe_name, FILENAME_LEN-1);
     catalog[slot].name[FILENAME_LEN-1] = '\0';
     catalog[slot].offset = offset;
@@ -353,10 +369,13 @@ bool eeprom_save_file(const char* filename, const uint8_t* data, size_t size) {
     catalog[slot].flags = 0x01;
     catalog_dirty = true;
 
-    result = flush_catalog();
+    if (!flush_catalog()) {
+        blink_error(7);
+        return false;
+    }
 
     digitalWrite(LED_PIN, LOW);
-    return result;
+    return true;
 }
 
 bool eeprom_load_file(const char* filename, uint8_t* buffer, size_t* size) {

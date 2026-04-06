@@ -36,7 +36,7 @@ void setup() {
     Wire.setClock(100000);
 
     int eeprom_status = eeprom_init();
-    eeprom_initialized = (eeprom_status == 0);
+    eeprom_initialized = (eeprom_status == EEPROM_OK || eeprom_status == EEPROM_OK_EMPTY);
 
     host_outputFreeMem(freeRam());
     host_outputProgMemDirectString(BYTES_FREE);
