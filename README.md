@@ -9,6 +9,61 @@
 Статья по созданию данного компьютера: [Habr](https://habr.com/ru/companies/ozonbank/articles/1001396/)
 
 
+## Установка и запуск
+
+### 1. Клонирование репозитория
+
+```bash
+git clone https://github.com/nicolas-vp/arduino-computer.git
+cd arduino-computer
+```
+
+### 2. Установка PlatformIO
+
+Установите [PlatformIO CLI](https://docs.platformio.org/en/latest/core/installation/index.html):
+
+```bash
+# Через pip
+pip install platformio
+```
+
+Или через расширение PlatformIO IDE в CLion (рекомендуемый способ).
+
+### 3. Открытие проекта в CLion
+
+1. Откройте **CLion** → **File → Open** → выберите папку проекта `mini-pc`
+2. При первом открытии CLion предложит установить плагин **PlatformIO IDE** — согласитесь
+3. Дождитесь индексации проекта
+
+### 4. Сборка и прошивка
+
+```bash
+# Сборка
+pio run -e megaatmega2560
+
+# Прошивка (укажите ваш порт)
+pio run -e megaatmega2560 --upload-port /dev/ttyUSB0 --target upload
+
+# Мониторинг Serial (для отладки)
+pio device monitor --port /dev/ttyUSB0 --baud 9600
+```
+
+Или используйте кнопки **Build** и **Upload** в CLion (панель PlatformIO внизу экрана).
+
+### 5. Подключение оборудования
+
+| Компонент | Подключение |
+|-----------|-------------|
+| **LCD 20×4** | RS=7, E=6, D4=5, D5=4, D6=3, D7=2 |
+| **CardKB** | SDA=20, SCL=21 (I2C, адрес 0x5F) |
+| **AT24C256** | SDA=20, SCL=21 (I2C, адрес 0x50) |
+| **Буззер** | Пин 8 |
+| **LED** | Пин 10 |
+
+> **Примечание:** I2C пины для Arduino Mega 2560 — SDA (20), SCL (21).
+
+---
+
 ## Оглавление
 
 1. [Аппаратная часть](#аппаратная-часть)

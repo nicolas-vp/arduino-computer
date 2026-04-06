@@ -161,6 +161,12 @@ void editor_display() {
             x++;
         }
 
+        // Пропускаем оставшуюся часть длинной строки
+        while (file_idx < current_file.size &&
+               current_file.data[file_idx] != '\n') {
+            file_idx++;
+        }
+
         if (file_idx < current_file.size && current_file.data[file_idx] == '\n') {
             file_idx++;
         }
@@ -243,11 +249,11 @@ void editor_display() {
 
 static void editor_insert_char(char c) {
     if (current_file.size >= MAX_FILE_SIZE - 1) return;
-    
+
     for (int i = current_file.size; i > file_pos; i--) {
         current_file.data[i] = current_file.data[i - 1];
     }
-    
+
     current_file.data[file_pos] = c;
     current_file.size++;
     file_pos++;
@@ -370,17 +376,24 @@ static void editor_save() {
 static bool editor_load(const char* filename) {
     strncpy(current_file.name, filename, 15);
     current_file.name[15] = 0;
-    
+
     size_t size = 0;
     if (eeprom_load_file(filename, (uint8_t*)current_file.data, &size)) {
-        current_file.size = size;
+        // Удаляем \r из данных (оставляем только \n)
+        size_t write = 0;
+        for (size_t read = 0; read < size; read++) {
+            if (current_file.data[read] != '\r') {
+                current_file.data[write++] = current_file.data[read];
+            }
+        }
+        current_file.size = write;
         current_file.modified = false;
         file_pos = 0;
         screen_offset = 0;
         screen_col_offset = 0;
         return true;
     }
-    
+
     current_file.size = 0;
     current_file.modified = false;
     file_pos = 0;
@@ -427,15 +440,6 @@ void editor_run(const char* filename) {
         }
 
         unsigned long now = millis();
-        // Debounce — игнорируем повтор того же символа
-        static unsigned char prev_key = 0;
-        static unsigned long prev_key_ms = 0;
-        if (key == prev_key && (now - prev_key_ms) < 300) {
-            delay(10);
-            continue;
-        }
-        prev_key = key;
-        prev_key_ms = now;
 
         switch(key) {
             case 0xB5:
