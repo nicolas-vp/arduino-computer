@@ -6,7 +6,7 @@
 #define SCREEN_HEIGHT 4
 
 // Размеры файлов
-#define MAX_FILE_SIZE 2048
+#define MAX_FILE_SIZE 1024
 #define MAX_FILENAME_LEN 16
 
 // Пин буззера
